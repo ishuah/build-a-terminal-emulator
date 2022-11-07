@@ -29,15 +29,32 @@ func main() {
 
 	defer c.Process.Kill()
 
-	p.Write([]byte("ls\r"))
-	time.Sleep(1 * time.Second)
-	b := make([]byte, 1024)
-	_, err = p.Read(b)
-	if err != nil {
-		fyne.LogError("Failed to read pty", err)
+	onTypedKey := func(e *fyne.KeyEvent) {
+		if e.Name == fyne.KeyEnter || e.Name == fyne.KeyReturn {
+			_, _ = p.Write([]byte{'\r'})
+		}
 	}
-	// s := fmt.Sprintf("read bytes from pty.\nContent:%s",  string(b))
-	ui.SetText(string(b))
+
+	onTypedRune := func(r rune) {
+		_, _ = p.WriteString(string(r))
+	}
+
+	w.Canvas().SetOnTypedKey(onTypedKey)
+	w.Canvas().SetOnTypedRune(onTypedRune)
+
+	go func() {
+		for {
+			time.Sleep(1 * time.Second)
+			b := make([]byte, 256)
+			_, err = p.Read(b)
+			if err != nil {
+				fyne.LogError("Failed to read pty", err)
+			}
+
+			ui.SetText(string(b))
+		}
+	}()
+
 	// Create a new container with a wrapped layout
 	// set the layout width to 420, height to 200
 	w.SetContent(
